@@ -1,4 +1,6 @@
-# VaultPilot Minimal Infrastructure
+# VaultPilot Infrastructure - Simplified Version
+# This creates the essential AWS resources for VaultPilot
+
 terraform {
   required_version = ">= 1.0"
   required_providers {
@@ -10,12 +12,25 @@ terraform {
 }
 
 provider "aws" {
-  region = "us-east-1"
+  region = var.aws_region
 }
 
-# DynamoDB Table for Credentials
+# Data sources
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+# Local values
+locals {
+  common_tags = {
+    Project     = "VaultPilot"
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+}
+
+# DynamoDB Tables
 resource "aws_dynamodb_table" "credentials" {
-  name           = "vaultpilot-credentials-dev"
+  name           = "vaultpilot-credentials-${var.environment}"
   billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "id"
 
@@ -24,15 +39,19 @@ resource "aws_dynamodb_table" "credentials" {
     type = "S"
   }
 
-  tags = {
-    Project     = "VaultPilot"
-    Environment = "dev"
+  point_in_time_recovery {
+    enabled = true
   }
+
+  server_side_encryption {
+    enabled = true
+  }
+
+  tags = local.common_tags
 }
 
-# DynamoDB Table for Audit Logs
 resource "aws_dynamodb_table" "audit_logs" {
-  name           = "vaultpilot-audit-logs-dev"
+  name           = "vaultpilot-audit-logs-${var.environment}"
   billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "id"
 
@@ -41,15 +60,20 @@ resource "aws_dynamodb_table" "audit_logs" {
     type = "S"
   }
 
-  tags = {
-    Project     = "VaultPilot"
-    Environment = "dev"
+  point_in_time_recovery {
+    enabled = true
   }
+
+  server_side_encryption {
+    enabled = true
+  }
+
+  tags = local.common_tags
 }
 
 # Cognito User Pool
 resource "aws_cognito_user_pool" "main" {
-  name = "vaultpilot-users-dev"
+  name = "vaultpilot-users-${var.environment}"
 
   password_policy {
     minimum_length    = 8
@@ -57,6 +81,12 @@ resource "aws_cognito_user_pool" "main" {
     require_uppercase = true
     require_numbers   = true
     require_symbols   = true
+  }
+
+  mfa_configuration = "OPTIONAL"
+
+  software_token_mfa_configuration {
+    enabled = true
   }
 
   schema {
@@ -77,14 +107,11 @@ resource "aws_cognito_user_pool" "main" {
     allow_admin_create_user_only = false
   }
 
-  tags = {
-    Project     = "VaultPilot"
-    Environment = "dev"
-  }
+  tags = local.common_tags
 }
 
 resource "aws_cognito_user_pool_client" "main" {
-  name         = "vaultpilot-client-dev"
+  name         = "vaultpilot-client-${var.environment}"
   user_pool_id = aws_cognito_user_pool.main.id
 
   generate_secret                      = false
@@ -114,11 +141,13 @@ resource "aws_cognito_user_pool_client" "main" {
   ]
 
   callback_urls = [
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "https://vaultpilot.${var.domain_name}"
   ]
 
   logout_urls = [
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "https://vaultpilot.${var.domain_name}"
   ]
 
   supported_identity_providers = ["COGNITO"]
@@ -126,12 +155,9 @@ resource "aws_cognito_user_pool_client" "main" {
 
 # S3 Bucket for Frontend
 resource "aws_s3_bucket" "frontend" {
-  bucket = "vaultpilot-frontend-dev-${random_string.bucket_suffix.result}"
+  bucket = "vaultpilot-frontend-${var.environment}-${random_string.bucket_suffix.result}"
 
-  tags = {
-    Project     = "VaultPilot"
-    Environment = "dev"
-  }
+  tags = local.common_tags
 }
 
 resource "random_string" "bucket_suffix" {
@@ -182,17 +208,14 @@ resource "aws_s3_bucket_policy" "frontend" {
 
 # SNS Topic for Notifications
 resource "aws_sns_topic" "notifications" {
-  name = "vaultpilot-notifications-dev"
+  name = "vaultpilot-notifications-${var.environment}"
 
-  tags = {
-    Project     = "VaultPilot"
-    Environment = "dev"
-  }
+  tags = local.common_tags
 }
 
 # Lambda Execution Role
 resource "aws_iam_role" "lambda_execution" {
-  name = "vaultpilot-lambda-role-dev"
+  name = "vaultpilot-lambda-role-${var.environment}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -207,10 +230,7 @@ resource "aws_iam_role" "lambda_execution" {
     ]
   })
 
-  tags = {
-    Project     = "VaultPilot"
-    Environment = "dev"
-  }
+  tags = local.common_tags
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_basic" {
@@ -219,7 +239,7 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
 }
 
 resource "aws_iam_role_policy" "lambda_dynamodb" {
-  name = "vaultpilot-lambda-dynamodb-dev"
+  name = "vaultpilot-lambda-dynamodb-${var.environment}"
   role = aws_iam_role.lambda_execution.id
 
   policy = jsonencode({
@@ -245,7 +265,7 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
 }
 
 resource "aws_iam_role_policy" "lambda_secrets" {
-  name = "vaultpilot-lambda-secrets-dev"
+  name = "vaultpilot-lambda-secrets-${var.environment}"
   role = aws_iam_role.lambda_execution.id
 
   policy = jsonencode({
@@ -267,7 +287,7 @@ resource "aws_iam_role_policy" "lambda_secrets" {
 }
 
 resource "aws_iam_role_policy" "lambda_sns" {
-  name = "vaultpilot-lambda-sns-dev"
+  name = "vaultpilot-lambda-sns-${var.environment}"
   role = aws_iam_role.lambda_execution.id
 
   policy = jsonencode({
@@ -282,40 +302,4 @@ resource "aws_iam_role_policy" "lambda_sns" {
       }
     ]
   })
-}
-
-# Outputs
-output "frontend_url" {
-  description = "Frontend application URL"
-  value       = "https://${aws_s3_bucket.frontend.bucket}.s3-website-us-east-1.amazonaws.com"
-}
-
-output "cognito_user_pool_id" {
-  description = "Cognito User Pool ID"
-  value       = aws_cognito_user_pool.main.id
-}
-
-output "cognito_user_pool_client_id" {
-  description = "Cognito User Pool Client ID"
-  value       = aws_cognito_user_pool_client.main.id
-}
-
-output "dynamodb_table_name" {
-  description = "DynamoDB table name"
-  value       = aws_dynamodb_table.credentials.name
-}
-
-output "sns_topic_arn" {
-  description = "SNS topic ARN for notifications"
-  value       = aws_sns_topic.notifications.arn
-}
-
-output "lambda_role_arn" {
-  description = "Lambda execution role ARN"
-  value       = aws_iam_role.lambda_execution.arn
-}
-
-output "s3_bucket_name" {
-  description = "S3 bucket name for frontend"
-  value       = aws_s3_bucket.frontend.bucket
 }

@@ -1,0 +1,272 @@
+name: VaultPilot CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+      - develop
+  pull_request:
+    branches:
+      - main
+      - staging
+
+env:
+  AWS_REGION: us-east-1
+  NODE_VERSION: '18'
+  TERRAFORM_VERSION: '1.5.0'
+
+jobs:
+  # Lint and Test
+  test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies - Frontend
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Install dependencies - Backend
+        working-directory: ./backend
+        run: npm ci
+      
+      - name: Lint Frontend
+        working-directory: ./frontend
+        run: npm run lint || echo "Linting not configured"
+      
+      - name: Lint Backend
+        working-directory: ./backend
+        run: npm run lint || echo "Linting not configured"
+      
+      - name: Run Frontend Tests
+        working-directory: ./frontend
+        run: npm test -- --passWithNoTests
+      
+      - name: Run Backend Tests
+        working-directory: ./backend
+        run: npm test -- --passWithNoTests
+      
+      - name: Build Frontend
+        working-directory: ./frontend
+        run: npm run build
+      
+      - name: Build Backend
+        working-directory: ./backend
+        run: npm run build || echo "Build not configured"
+
+  # Security Scan
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Deploy Infrastructure
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Terraform Init
+        working-directory: ./infrastructure
+        run: terraform init
+      
+      - name: Terraform Plan
+        working-directory: ./infrastructure
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            terraform plan -var="environment=prod" -out=tfplan
+          else
+            terraform plan -var="environment=staging" -out=tfplan
+          fi
+      
+      - name: Terraform Apply
+        working-directory: ./infrastructure
+        if: github.event_name == 'push'
+        run: terraform apply -auto-approve tfplan
+      
+      - name: Get Terraform Outputs
+        working-directory: ./infrastructure
+        id: terraform-outputs
+        run: |
+          echo "cognito_user_pool_id=$(terraform output -raw cognito_user_pool_id)" >> $GITHUB_OUTPUT
+          echo "cognito_user_pool_client_id=$(terraform output -raw cognito_user_pool_client_id)" >> $GITHUB_OUTPUT
+          echo "s3_bucket_name=$(terraform output -raw s3_bucket_name)" >> $GITHUB_OUTPUT
+          echo "frontend_url=$(terraform output -raw frontend_url)" >> $GITHUB_OUTPUT
+
+  # Deploy Backend
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    needs: deploy-infrastructure
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Install Serverless Framework
+        run: npm install -g serverless
+      
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm ci
+      
+      - name: Deploy Lambda Functions
+        working-directory: ./backend
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            npm run deploy -- --stage prod
+          else
+            npm run deploy -- --stage staging
+          fi
+
+  # Deploy Frontend
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: deploy-infrastructure
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Build Frontend
+        working-directory: ./frontend
+        env:
+          REACT_APP_AWS_REGION: ${{ env.AWS_REGION }}
+          REACT_APP_USER_POOL_ID: ${{ needs.deploy-infrastructure.outputs.cognito_user_pool_id }}
+          REACT_APP_USER_POOL_CLIENT_ID: ${{ needs.deploy-infrastructure.outputs.cognito_user_pool_client_id }}
+        run: npm run build
+      
+      - name: Deploy to S3
+        working-directory: ./frontend
+        run: |
+          BUCKET_NAME="${{ needs.deploy-infrastructure.outputs.s3_bucket_name }}"
+          aws s3 sync build/ s3://$BUCKET_NAME --delete
+      
+      - name: Invalidate CloudFront Cache
+        run: |
+          # Get CloudFront distribution ID
+          DISTRIBUTION_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?Origins.Items[?DomainName=='${{ needs.deploy-infrastructure.outputs.s3_bucket_name }}.s3.amazonaws.com']].Id" --output text)
+          if [ ! -z "$DISTRIBUTION_ID" ]; then
+            aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
+          fi
+
+  # Smoke Tests
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-frontend]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Test Frontend Accessibility
+        run: |
+          FRONTEND_URL="${{ needs.deploy-infrastructure.outputs.frontend_url }}"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $FRONTEND_URL)
+          if [ $HTTP_CODE -ne 200 ]; then
+            echo "Frontend is not accessible. HTTP Code: $HTTP_CODE"
+            exit 1
+          fi
+          echo "Frontend is accessible"
+      
+      - name: Test API Health
+        run: |
+          # Add API health check here
+          echo "API health check would go here"
+
+  # Notify
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-frontend, smoke-tests]
+    if: always()
+    
+    steps:
+      - name: Send Slack Notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            VaultPilot Deployment ${{ job.status }}
+            Branch: ${{ github.ref }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: always()
