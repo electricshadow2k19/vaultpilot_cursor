@@ -38,7 +38,7 @@ export const rotation = async (
     
     for (const credential of credentialsToRotate) {
       try {
-        const result = await rotateCredential(credential);
+        const result = await rotateCredentialInternal(credential);
         rotationResults.push(result);
         
         // Log rotation activity
@@ -495,11 +495,8 @@ async function sendNotification(credential: Credential, result: { success: boole
 }
 
 async function logActivity(action: string, description: string, metadata: Record<string, any>): Promise<void> {
-  const tableName = process.env.DYNAMODB_TABLE;
-  if (!tableName) {
-    console.warn('DYNAMODB_TABLE not set, skipping audit log');
-    return;
-  }
+  // Use dedicated audit logs table
+  const tableName = process.env.AUDIT_TABLE || 'vaultpilot-audit-logs-dev';
   
   try {
     await dynamodb.put({

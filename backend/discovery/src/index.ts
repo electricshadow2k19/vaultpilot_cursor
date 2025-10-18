@@ -259,11 +259,8 @@ async function storeCredentials(credentials: Credential[]): Promise<void> {
 }
 
 async function logActivity(action: string, description: string, metadata: Record<string, any>): Promise<void> {
-  const tableName = process.env.DYNAMODB_TABLE;
-  if (!tableName) {
-    console.warn('DYNAMODB_TABLE not set, skipping audit log');
-    return;
-  }
+  // Use dedicated audit logs table
+  const tableName = process.env.AUDIT_TABLE || 'vaultpilot-audit-logs-dev';
   
   try {
     await dynamodb.put({
