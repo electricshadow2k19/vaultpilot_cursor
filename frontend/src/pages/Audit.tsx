@@ -29,67 +29,52 @@ const Audit: React.FC = () => {
   const [filterAction, setFilterAction] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [dateRange, setDateRange] = useState('7d');
+  const [loading, setLoading] = useState(true);
+
+  const API_ENDPOINT = 'https://t9abv3wghl.execute-api.us-east-1.amazonaws.com';
 
   useEffect(() => {
-    // Mock audit data
-    setAuditLogs([
-      {
-        id: '1',
-        timestamp: '2024-01-20T10:30:00Z',
-        action: 'Credential Rotation',
-        credentialName: 'Production DB Password',
-        credentialType: 'Database',
-        user: 'admin@company.com',
-        status: 'success',
-        details: 'Successfully rotated database password for production environment',
-        ipAddress: '192.168.1.100'
-      },
-      {
-        id: '2',
-        timestamp: '2024-01-20T09:15:00Z',
-        action: 'Credential Access',
-        credentialName: 'AWS Access Key',
-        credentialType: 'AWS IAM',
-        user: 'dev@company.com',
-        status: 'success',
-        details: 'Retrieved AWS access key for deployment process',
-        ipAddress: '192.168.1.101'
-      },
-      {
-        id: '3',
-        timestamp: '2024-01-19T16:45:00Z',
-        action: 'Credential Rotation',
-        credentialName: 'SMTP Credentials',
-        credentialType: 'SMTP',
-        user: 'admin@company.com',
-        status: 'failed',
-        details: 'Failed to rotate SMTP credentials - service unavailable',
-        ipAddress: '192.168.1.100'
-      },
-      {
-        id: '4',
-        timestamp: '2024-01-19T14:20:00Z',
-        action: 'Credential Discovery',
-        credentialName: 'GitHub Token',
-        credentialType: 'GitHub',
-        user: 'system',
-        status: 'warning',
-        details: 'Discovered expired GitHub token in CI/CD pipeline',
-        ipAddress: 'system'
-      },
-      {
-        id: '5',
-        timestamp: '2024-01-19T11:30:00Z',
-        action: 'Credential Rotation',
-        credentialName: 'API Token',
-        credentialType: 'API Token',
-        user: 'admin@company.com',
-        status: 'success',
-        details: 'Successfully rotated API token for external service integration',
-        ipAddress: '192.168.1.100'
+    fetchAuditLogs();
+  }, [dateRange]);
+
+  const fetchAuditLogs = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch from DynamoDB audit logs table
+      const response = await fetch(`${API_ENDPOINT}/audit?range=${dateRange}`).catch(() => null);
+      
+      if (response && response.ok) {
+        const data = await response.json();
+        const logs = data.logs || [];
+        
+        // Transform audit logs to UI format
+        const formattedLogs = logs.map((log: any) => ({
+          id: log.id,
+          timestamp: log.timestamp,
+          action: log.action?.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Unknown Action',
+          credentialName: log.metadata?.credentialName || 'N/A',
+          credentialType: log.metadata?.credentialType || 'N/A',
+          user: log.metadata?.user || 'system',
+          status: log.metadata?.status || 'success',
+          details: log.description || 'No details available',
+          ipAddress: log.metadata?.ipAddress || 'N/A'
+        }));
+        
+        setAuditLogs(formattedLogs);
+      } else {
+        // Show empty state if no data
+        setAuditLogs([]);
       }
-    ]);
-  }, []);
+      
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      setAuditLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   const getStatusIcon = (status: string) => {
     switch (status) {

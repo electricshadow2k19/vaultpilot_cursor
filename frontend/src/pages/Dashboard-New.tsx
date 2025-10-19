@@ -2,10 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Shield, 
   Key, 
-  AlertTriangle,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown, 
+  AlertTriangle, 
   CheckCircle, 
   Clock,
   TrendingUp,
@@ -40,10 +37,6 @@ const Dashboard: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCredential, setSelectedCredential] = useState<any>(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [sortField, setSortField] = useState<string>('lastRotated');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const API_ENDPOINT = 'https://t9abv3wghl.execute-api.us-east-1.amazonaws.com';
 
@@ -132,64 +125,14 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Get unique accounts for filter
-  const uniqueAccounts = Array.from(new Set(credentials.map((c: any) => c.tenantId || 'default')));
-
-  // Sort handler
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  // Filter and sort credentials
-  const filteredAndSortedCredentials = credentials
-    .filter((cred: any) => {
-      if (selectedAccount !== 'all' && (cred.tenantId || 'default') !== selectedAccount) return false;
-      if (selectedStatus !== 'all' && cred.status !== selectedStatus) return false;
-      if (selectedType !== 'all' && cred.type !== selectedType) return false;
-      if (searchTerm && !cred.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-      return true;
-    })
-    .sort((a: any, b: any) => {
-      let aVal, bVal;
-      
-      switch (sortField) {
-        case 'account':
-          aVal = a.tenantId || 'default';
-          bVal = b.tenantId || 'default';
-          break;
-        case 'name':
-          aVal = a.name;
-          bVal = b.name;
-          break;
-        case 'type':
-          aVal = a.type;
-          bVal = b.type;
-          break;
-        case 'status':
-          aVal = a.status;
-          bVal = b.status;
-          break;
-        case 'age':
-          aVal = getAgeInDays(a.lastRotated);
-          bVal = getAgeInDays(b.lastRotated);
-          break;
-        case 'lastRotated':
-          aVal = new Date(a.lastRotated).getTime();
-          bVal = new Date(b.lastRotated).getTime();
-          break;
-        default:
-          return 0;
-      }
-      
-      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
+  // Filter credentials
+  const filteredCredentials = credentials.filter((cred: any) => {
+    if (selectedAccount !== 'all' && cred.tenantId !== selectedAccount) return false;
+    if (selectedStatus !== 'all' && cred.status !== selectedStatus) return false;
+    if (selectedType !== 'all' && cred.type !== selectedType) return false;
+    if (searchTerm && !cred.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return true;
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -415,98 +358,26 @@ const Dashboard: React.FC = () => {
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
-            Live Credentials ({filteredAndSortedCredentials.length})
+            Live Credentials ({filteredCredentials.length})
           </h3>
-          <p className="text-sm text-gray-600 mt-1">Real-time view of all managed credentials • Click column headers to sort</p>
+          <p className="text-sm text-gray-600 mt-1">Real-time view of all managed credentials</p>
         </div>
         
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th 
-                  onClick={() => handleSort('account')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Account</span>
-                    {sortField === 'account' ? (
-                      sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                    ) : (
-                      <ArrowUpDown className="h-4 w-4 opacity-30" />
-                    )}
-                  </div>
-                </th>
-                <th 
-                  onClick={() => handleSort('name')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Credential Name</span>
-                    {sortField === 'name' ? (
-                      sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                    ) : (
-                      <ArrowUpDown className="h-4 w-4 opacity-30" />
-                    )}
-                  </div>
-                </th>
-                <th 
-                  onClick={() => handleSort('type')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Type</span>
-                    {sortField === 'type' ? (
-                      sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                    ) : (
-                      <ArrowUpDown className="h-4 w-4 opacity-30" />
-                    )}
-                  </div>
-                </th>
-                <th 
-                  onClick={() => handleSort('status')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Status</span>
-                    {sortField === 'status' ? (
-                      sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                    ) : (
-                      <ArrowUpDown className="h-4 w-4 opacity-30" />
-                    )}
-                  </div>
-                </th>
-                <th 
-                  onClick={() => handleSort('age')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Age</span>
-                    {sortField === 'age' ? (
-                      sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                    ) : (
-                      <ArrowUpDown className="h-4 w-4 opacity-30" />
-                    )}
-                  </div>
-                </th>
-                <th 
-                  onClick={() => handleSort('lastRotated')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Last Rotated</span>
-                    {sortField === 'lastRotated' ? (
-                      sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                    ) : (
-                      <ArrowUpDown className="h-4 w-4 opacity-30" />
-                    )}
-                  </div>
-                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credential Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Rotated</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredAndSortedCredentials.length > 0 ? filteredAndSortedCredentials.map((cred: any) => (
+              {filteredCredentials.length > 0 ? filteredCredentials.map((cred: any) => (
                 <tr key={cred.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{cred.tenantId || 'default'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -516,43 +387,15 @@ const Dashboard: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cred.type?.replace('_', ' ')}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(cred.status)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{getAgeInDays(cred.lastRotated)} days</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {new Date(cred.lastRotated).toLocaleDateString()}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(cred.lastRotated).toLocaleTimeString()}
-                    </div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(cred.lastRotated).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                    <button
-                      onClick={async () => {
-                        if (window.confirm(`Rotate credential: ${cred.name}?`)) {
-                          try {
-                            const response = await fetch(`${API_ENDPOINT}/rotation`, { method: 'POST' });
-                            if (response.ok) {
-                              alert('✅ Rotation initiated! Refresh the page to see updates.');
-                              fetchDashboardData();
-                            }
-                          } catch (error) {
-                            alert('Failed to initiate rotation');
-                          }
-                        }
-                      }}
-                      className="text-primary-600 hover:text-primary-900 font-medium"
-                      title="Rotate Now"
-                    >
-                      Rotate Now
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button className="text-primary-600 hover:text-primary-900 mr-3" title="Rotate">
+                      <RotateCw className="h-4 w-4" />
                     </button>
-                    <button
-                      onClick={() => {
-                        setSelectedCredential(cred);
-                        setShowDetailsModal(true);
-                      }}
-                      className="text-gray-600 hover:text-gray-900"
-                      title="View Details"
-                    >
-                      <Eye className="h-4 w-4 inline" />
+                    <button className="text-gray-600 hover:text-gray-900" title="View Details">
+                      <Eye className="h-4 w-4" />
                     </button>
                   </td>
                 </tr>
@@ -569,113 +412,6 @@ const Dashboard: React.FC = () => {
           </table>
         </div>
       </div>
-
-      {/* Details Modal */}
-      {showDetailsModal && selectedCredential && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowDetailsModal(false)}>
-          <div className="bg-white rounded-lg p-8 max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900">{selectedCredential.name}</h3>
-                <p className="text-sm text-gray-500 mt-1">{selectedCredential.id}</p>
-              </div>
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Account</label>
-                  <p className="mt-1 text-sm text-gray-900">{selectedCredential.tenantId || 'default'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Type</label>
-                  <p className="mt-1 text-sm text-gray-900">{selectedCredential.type?.replace('_', ' ')}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Environment</label>
-                  <p className="mt-1 text-sm text-gray-900">{selectedCredential.environment}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Status</label>
-                  <div className="mt-1">{getStatusBadge(selectedCredential.status)}</div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Source</label>
-                  <p className="mt-1 text-sm text-gray-900">{selectedCredential.source}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Expires In</label>
-                  <p className="mt-1 text-sm text-gray-900">{selectedCredential.expiresIn} days</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Created</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {new Date(selectedCredential.createdAt).toLocaleDateString()}
-                    {' '}
-                    {new Date(selectedCredential.createdAt).toLocaleTimeString()}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Last Rotated</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {new Date(selectedCredential.lastRotated).toLocaleDateString()}
-                    {' '}
-                    {new Date(selectedCredential.lastRotated).toLocaleTimeString()}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Last Updated</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {new Date(selectedCredential.updatedAt).toLocaleDateString()}
-                    {' '}
-                    {new Date(selectedCredential.updatedAt).toLocaleTimeString()}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Age</label>
-                  <p className="mt-1 text-sm text-gray-900">{getAgeInDays(selectedCredential.lastRotated)} days</p>
-                </div>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end space-x-3">
-                <button
-                  onClick={() => setShowDetailsModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={async () => {
-                    if (window.confirm(`Rotate credential: ${selectedCredential.name}?`)) {
-                      try {
-                        const response = await fetch(`${API_ENDPOINT}/rotation`, { method: 'POST' });
-                        if (response.ok) {
-                          alert('✅ Rotation initiated!');
-                          setShowDetailsModal(false);
-                          fetchDashboardData();
-                        }
-                      } catch (error) {
-                        alert('Failed to initiate rotation');
-                      }
-                    }
-                  }}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-                >
-                  Rotate Now
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

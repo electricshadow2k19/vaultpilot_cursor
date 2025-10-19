@@ -421,6 +421,9 @@ async function updateCredentialRotation(credentialId: string): Promise<void> {
   }
   
   try {
+    const now = new Date().toISOString();
+    console.log(`Updating credential ${credentialId} with lastRotated: ${now}`);
+    
     await dynamodb.update({
       TableName: tableName,
       Key: { id: credentialId },
@@ -429,10 +432,10 @@ async function updateCredentialRotation(credentialId: string): Promise<void> {
         '#status': 'status'
       },
       ExpressionAttributeValues: {
-        ':lastRotated': new Date().toISOString().split('T')[0],
+        ':lastRotated': now,
         ':expiresIn': 90,
         ':status': 'active',
-        ':updatedAt': new Date().toISOString()
+        ':updatedAt': now
       }
     }).promise();
   } catch (error) {

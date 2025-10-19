@@ -31,52 +31,50 @@ const Credentials: React.FC = () => {
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const API_ENDPOINT = 'https://t9abv3wghl.execute-api.us-east-1.amazonaws.com';
 
   useEffect(() => {
-    // Mock data
-    setCredentials([
-      {
-        id: '1',
-        name: 'Production DB Password',
-        type: 'Database',
-        environment: 'Production',
-        lastRotated: '2024-01-15',
-        expiresIn: '45 days',
-        status: 'active',
-        description: 'Main production database credentials'
-      },
-      {
-        id: '2',
-        name: 'AWS Access Key',
-        type: 'AWS IAM',
-        environment: 'Staging',
-        lastRotated: '2024-01-10',
-        expiresIn: '5 days',
-        status: 'expiring',
-        description: 'Staging environment AWS access'
-      },
-      {
-        id: '3',
-        name: 'SMTP Credentials',
-        type: 'SMTP',
-        environment: 'Production',
-        lastRotated: '2024-01-20',
-        expiresIn: '30 days',
-        status: 'active',
-        description: 'Email service credentials'
-      },
-      {
-        id: '4',
-        name: 'GitHub Token',
-        type: 'GitHub',
-        environment: 'Development',
-        lastRotated: '2023-12-01',
-        expiresIn: 'Expired',
-        status: 'expired',
-        description: 'CI/CD pipeline access token'
-      }
-    ]);
+    fetchCredentials();
   }, []);
+
+  const fetchCredentials = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch from DynamoDB via API Gateway
+      const response = await fetch(`${API_ENDPOINT}/credentials`).catch(() => null);
+      
+      if (response && response.ok) {
+        const data = await response.json();
+        const allCredentials = data.credentials || [];
+        
+        // Transform data to match UI format
+        const formattedCredentials = allCredentials.map((cred: any) => ({
+          id: cred.id,
+          name: cred.name,
+          type: cred.type?.replace('_', ' ') || 'Unknown',
+          environment: cred.environment || 'production',
+          lastRotated: cred.lastRotated ? new Date(cred.lastRotated).toLocaleDateString() : 'Never',
+          expiresIn: cred.expiresIn > 0 ? `${cred.expiresIn} days` : cred.expiresIn < 0 ? 'Expired' : 'N/A',
+          status: cred.status || 'unknown',
+          description: cred.metadata?.description || `${cred.type} credential`
+        }));
+        
+        setCredentials(formattedCredentials);
+      } else {
+        // No API or error - show empty state
+        setCredentials([]);
+      }
+      
+    } catch (error) {
+      console.error('Error fetching credentials:', error);
+      setCredentials([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getTypeIcon = (type: string) => {
     switch (type) {

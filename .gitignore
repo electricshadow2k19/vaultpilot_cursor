@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+**/node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Build outputs
+build/
+dist/
+frontend/build/
+*.zip
+
+# Environment
+.env
+.env.local
+.env.production
+
+# AWS
+*.pem
+*.key
+response.json
+*-result.json
+*-response.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+*.tmp
+*.temp
+
+# JSON test files
+test-*.json
+new-*.json
+add-*.json
+

@@ -8,7 +8,8 @@ import {
   Menu, 
   X,
   LogOut,
-  User
+  User,
+  Cloud
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -23,7 +24,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, signOut }) => {
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Shield },
-    { name: 'Credentials', href: '/credentials', icon: Key },
+    { name: 'AWS Accounts', href: '/accounts', icon: Cloud },
     { name: 'Audit Logs', href: '/audit', icon: FileText },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];

@@ -4,11 +4,7 @@ import {
   Bell, 
   Shield, 
   Key, 
-  Mail, 
-  Slack,
-  Clock,
-  AlertTriangle,
-  CheckCircle
+  Mail
 } from 'lucide-react';
 
 const Settings: React.FC = () => {
@@ -54,6 +50,7 @@ const Settings: React.FC = () => {
   const handleSave = () => {
     // Save settings logic here
     console.log('Saving settings:', settings);
+    alert('✅ Settings saved successfully!');
   };
 
   const tabs = [
