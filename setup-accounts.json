@@ -1,0 +1,37 @@
+{
+  "vaultpilot-accounts-prod": [
+    {
+      "PutRequest": {
+        "Item": {
+          "id": {"S": "700880967608"},
+          "accountId": {"S": "700880967608"},
+          "accountName": {"S": "My AWS Account"},
+          "roleArn": {"S": "arn:aws:iam::700880967608:role/VaultPilot-Lambda-prod"},
+          "externalId": {"S": "vaultpilot-default"},
+          "regions": {"L": [{"S": "us-east-1"}]},
+          "status": {"S": "active"},
+          "createdAt": {"S": "2025-10-19T00:00:00.000Z"},
+          "lastScan": {"S": "2025-10-19T01:00:00.000Z"},
+          "credentialsFound": {"N": "2"}
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "id": {"S": "411474509059"},
+          "accountId": {"S": "411474509059"},
+          "accountName": {"S": "techgeekalpha"},
+          "roleArn": {"S": "arn:aws:iam::411474509059:role/VaultPilotAccess"},
+          "externalId": {"S": "vaultpilot-411474509059-secure"},
+          "regions": {"L": [{"S": "us-east-1"}]},
+          "status": {"S": "pending"},
+          "createdAt": {"S": "2025-10-19T02:00:00.000Z"},
+          "lastScan": {"S": ""},
+          "credentialsFound": {"N": "0"}
+        }
+      }
+    }
+  ]
+}
+

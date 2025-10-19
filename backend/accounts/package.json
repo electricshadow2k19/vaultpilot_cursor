@@ -1,0 +1,21 @@
+{
+  "name": "vaultpilot-accounts-api",
+  "version": "1.0.0",
+  "description": "VaultPilot AWS Account Management API",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy": "serverless deploy"
+  },
+  "keywords": ["vaultpilot", "aws", "accounts", "api"],
+  "author": "VaultPilot",
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.1400.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-offline": "^12.7.0"
+  }
+}
