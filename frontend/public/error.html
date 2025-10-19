@@ -6,9 +6,12 @@
   <title>VaultPilot - Loading...</title>
   <script>
     // Redirect all 404s to index.html for client-side routing
-    // Store the original path in hash so React Router can handle it
-    var path = window.location.pathname + window.location.search;
-    window.location.replace('/index.html#' + path);
+    var currentPath = window.location.pathname + window.location.search + window.location.hash;
+    // Only redirect if not already on index.html
+    if (currentPath !== '/index.html' && !currentPath.startsWith('/index.html')) {
+      sessionStorage.setItem('redirectPath', window.location.pathname);
+      window.location.replace('/index.html');
+    }
   </script>
 </head>
 <body>
