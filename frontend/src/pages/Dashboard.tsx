@@ -34,6 +34,7 @@ const Dashboard: React.FC = () => {
   const [accountSummary, setAccountSummary] = useState<any[]>([]);
   const [rotationTrend, setRotationTrend] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [awsAccounts, setAwsAccounts] = useState<any[]>([]);
   
   // Filters
   const [selectedAccount, setSelectedAccount] = useState('all');
@@ -58,10 +59,13 @@ const Dashboard: React.FC = () => {
       // Fetch AWS accounts
       const accountsResponse = await fetch(`${API_ENDPOINT}/accounts`).catch(() => null);
       let totalAccountsCount = 0;
+      let accountsList: any[] = [];
       
       if (accountsResponse && accountsResponse.ok) {
         const accountsData = await accountsResponse.json();
         totalAccountsCount = accountsData.count || 0;
+        accountsList = accountsData.accounts || [];
+        setAwsAccounts(accountsList);
       }
       
       // Fetch credentials
@@ -157,7 +161,7 @@ const Dashboard: React.FC = () => {
   // Filter and sort credentials
   const filteredAndSortedCredentials = credentials
     .filter((cred: any) => {
-      if (selectedAccount !== 'all' && (cred.tenantId || 'default') !== selectedAccount) return false;
+      if (selectedAccount !== 'all' && (cred.accountId || cred.tenantId || 'default') !== selectedAccount) return false;
       if (selectedStatus !== 'all' && cred.status !== selectedStatus) return false;
       if (selectedType !== 'all' && cred.type !== selectedType) return false;
       if (searchTerm && !cred.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
@@ -369,8 +373,10 @@ const Dashboard: React.FC = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">All Accounts</option>
-              {accountSummary.map((account: any) => (
-                <option key={account.accountId} value={account.accountId}>{account.accountId}</option>
+              {awsAccounts.map((account: any) => (
+                <option key={account.id} value={account.accountId}>
+                  {account.accountName} ({account.accountId})
+                </option>
               ))}
             </select>
           </div>
