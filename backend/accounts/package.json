@@ -11,11 +11,15 @@
   "author": "VaultPilot",
   "license": "MIT",
   "dependencies": {
-    "aws-sdk": "^2.1400.0",
+    "@aws-sdk/client-dynamodb": "^3.400.0",
+    "@aws-sdk/lib-dynamodb": "^3.400.0",
+    "@aws-sdk/client-sts": "^3.400.0",
+    "@aws-sdk/client-iam": "^3.400.0",
+    "@aws-sdk/client-secrets-manager": "^3.400.0",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
     "serverless": "^3.38.0",
-    "serverless-offline": "^12.7.0"
+    "serverless-offline": "^13.0.0"
   }
 }
