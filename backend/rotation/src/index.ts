@@ -224,9 +224,24 @@ async function rotateCredentialInternal(credential: Credential): Promise<{ succe
     if (result.success) {
       // Update credential with new rotation date
       await updateCredentialRotation(credential.id);
+      
+      // Log successful rotation to audit table
+      await logActivity('rotation', `Credential rotated: ${credential.name}`, {
+        credentialId: credential.id,
+        credentialType: credential.type,
+        status: 'success'
+      });
     } else {
       // Revert status on failure
       await updateCredentialStatus(credential.id, 'active');
+      
+      // Log failed rotation to audit table
+      await logActivity('rotation_failed', `Rotation failed: ${credential.name}`, {
+        credentialId: credential.id,
+        credentialType: credential.type,
+        status: 'failed',
+        error: result.error
+      });
     }
     
     return result;
@@ -499,7 +514,7 @@ async function sendNotification(credential: Credential, result: { success: boole
 
 async function logActivity(action: string, description: string, metadata: Record<string, any>): Promise<void> {
   // Use dedicated audit logs table
-  const tableName = process.env.AUDIT_TABLE || 'vaultpilot-audit-logs-dev';
+  const tableName = process.env.AUDIT_TABLE || 'vaultpilot-audit-logs-prod';
   
   try {
     await dynamodb.put({
