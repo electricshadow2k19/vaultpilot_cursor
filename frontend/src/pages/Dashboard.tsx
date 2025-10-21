@@ -597,10 +597,18 @@ const Dashboard: React.FC = () => {
                       onClick={async () => {
                         if (window.confirm(`Rotate credential: ${cred.name}?`)) {
                           try {
-                            const response = await fetch(`${API_ENDPOINT}/rotation`, { method: 'POST' });
+                            const response = await fetch(`${API_ENDPOINT}/rotation/${cred.id}`, { 
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json'
+                              }
+                            });
                             if (response.ok) {
                               alert('✅ Rotation initiated! Refresh the page to see updates.');
                               fetchDashboardData();
+                            } else {
+                              const error = await response.json();
+                              alert(`Failed to rotate: ${error.message || 'Unknown error'}`);
                             }
                           } catch (error) {
                             alert('Failed to initiate rotation');
