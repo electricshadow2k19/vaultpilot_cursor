@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VaultPilot IAM Role for Account: techgeekalpha (411474509059)'
+
+Resources:
+  VaultPilotAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: VaultPilotAccess
+      Description: 'Allows VaultPilot to scan and rotate credentials'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: 'arn:aws:iam::700880967608:role/VaultPilot-Lambda-prod'
+            Action: 'sts:AssumeRole'
+            Condition:
+              StringEquals:
+                'sts:ExternalId': 'vaultpilot-411474509059-secure'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/IAMReadOnlyAccess'
+        - 'arn:aws:iam::aws:policy/SecretsManagerReadWrite'
+      Policies:
+        - PolicyName: VaultPilotCredentialRotation
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: DiscoverCredentials
+                Effect: Allow
+                Action:
+                  - 'iam:ListUsers'
+                  - 'iam:ListAccessKeys'
+                  - 'iam:GetUser'
+                  - 'secretsmanager:ListSecrets'
+                  - 'secretsmanager:DescribeSecret'
+                  - 'ssm:DescribeParameters'
+                  - 'rds:DescribeDBInstances'
+                Resource: '*'
+              - Sid: RotateIAMKeys
+                Effect: Allow
+                Action:
+                  - 'iam:CreateAccessKey'
+                  - 'iam:DeleteAccessKey'
+                  - 'iam:UpdateAccessKey'
+                Resource: '*'
+              - Sid: RotateSecrets
+                Effect: Allow
+                Action:
+                  - 'secretsmanager:GetSecretValue'
+                  - 'secretsmanager:PutSecretValue'
+                  - 'secretsmanager:UpdateSecret'
+                  - 'secretsmanager:RotateSecret'
+                Resource: '*'
+
+Outputs:
+  RoleArn:
+    Description: 'ARN of the VaultPilot Access Role'
+    Value: !GetAtt VaultPilotAccessRole.Arn
+    Export:
+      Name: VaultPilotAccessRoleArn
+  
+  ExternalId:
+    Description: 'External ID for assuming the role'
+    Value: 'vaultpilot-411474509059-secure'
+  
+  SetupInstructions:
+    Description: 'What to do next'
+    Value: 'Role created! The account should now show as Active in VaultPilot. Click the Scan button to discover credentials.'
+
