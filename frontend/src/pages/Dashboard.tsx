@@ -55,6 +55,15 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       
+      // Fetch AWS accounts
+      const accountsResponse = await fetch(`${API_ENDPOINT}/accounts`).catch(() => null);
+      let totalAccountsCount = 0;
+      
+      if (accountsResponse && accountsResponse.ok) {
+        const accountsData = await accountsResponse.json();
+        totalAccountsCount = accountsData.count || 0;
+      }
+      
       // Fetch credentials
       const credsResponse = await fetch(`${API_ENDPOINT}/credentials`).catch(() => null);
       
@@ -91,7 +100,7 @@ const Dashboard: React.FC = () => {
         const accountSummaryData = Object.values(accountGroups);
         
         setStats({
-          totalAccounts: accountSummaryData.length,
+          totalAccounts: totalAccountsCount,
           activeKeys,
           expiringSoon,
           expired,
