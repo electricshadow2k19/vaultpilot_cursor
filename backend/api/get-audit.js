@@ -15,7 +15,15 @@ exports.handler = async (event) => {
     'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
   };
   
+  // Handle OPTIONS for CORS
+  if (event.httpMethod === 'OPTIONS' || event.requestContext?.http?.method === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
+  }
+  
   try {
+    // Use environment variable or default to prod
+    const tableName = process.env.AUDIT_TABLE || 'vaultpilot-audit-logs-prod';
+    
     // Get date range from query params (optional)
     const range = event.queryStringParameters?.range || '7';
     const daysAgo = parseInt(range);
@@ -23,11 +31,11 @@ exports.handler = async (event) => {
     cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
     const cutoffTimestamp = cutoffDate.toISOString();
     
-    console.log(`Fetching logs from last ${daysAgo} days (since ${cutoffTimestamp})`);
+    console.log(`Fetching logs from last ${daysAgo} days (since ${cutoffTimestamp}) from table: ${tableName}`);
     
     // Scan audit logs table
     const result = await dynamodb.send(new ScanCommand({
-      TableName: 'vaultpilot-audit-logs-dev'
+      TableName: tableName
     }));
     
     // Filter by date if needed

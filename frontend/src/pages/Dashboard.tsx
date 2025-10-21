@@ -48,6 +48,39 @@ const Dashboard: React.FC = () => {
 
   const API_ENDPOINT = 'https://t9abv3wghl.execute-api.us-east-1.amazonaws.com';
 
+  // Generate rotation trend from credentials
+  const generateRotationTrend = (credentials: any[]) => {
+    const last7Days = [];
+    const today = new Date();
+    
+    // Create buckets for last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
+      last7Days.push({
+        date: i === 0 ? 'Today' : dateStr,
+        rotations: 0,
+        fullDate: date.toISOString().split('T')[0]
+      });
+    }
+    
+    // Count rotations per day based on lastRotated field
+    credentials.forEach((cred: any) => {
+      if (cred.lastRotated) {
+        const rotatedDate = new Date(cred.lastRotated);
+        const rotatedDateStr = rotatedDate.toISOString().split('T')[0];
+        
+        const dayBucket = last7Days.find(day => day.fullDate === rotatedDateStr);
+        if (dayBucket) {
+          dayBucket.rotations++;
+        }
+      }
+    });
+    
+    return last7Days.map(({ date, rotations }) => ({ date, rotations }));
+  };
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -125,16 +158,9 @@ const Dashboard: React.FC = () => {
         
         setAccountSummary(accountSummaryData);
         
-        // Mock rotation trend - would come from audit logs in production
-        setRotationTrend([
-          { date: '10/12', rotations: 5 },
-          { date: '10/13', rotations: 8 },
-          { date: '10/14', rotations: 6 },
-          { date: '10/15', rotations: 12 },
-          { date: '10/16', rotations: 9 },
-          { date: '10/17', rotations: 15 },
-          { date: 'Today', rotations: recentlyRotated }
-        ]);
+        // Generate rotation trend from actual credential lastRotated dates
+        const trendData = generateRotationTrend(allCredentials);
+        setRotationTrend(trendData);
         
       } else {
         setStats({
