@@ -88,23 +88,33 @@ const Dashboard: React.FC = () => {
           return daysSince < 7;
         }).length;
         
-        // Group by account
+        // Group by account and map to account names
         const accountGroups = allCredentials.reduce((acc: any, cred: any) => {
-          const accountId = cred.accountId || cred.tenantId || 'default';
-          if (!acc[accountId]) {
-            acc[accountId] = { accountId, count: 0, active: 0, expiring: 0, expired: 0 };
+          // Map tenantId to accountId (default -> 700880967608)
+          let accountId = cred.accountId || cred.tenantId;
+          if (accountId === 'default') accountId = '700880967608';
+          
+          // Find account name from accounts list
+          const account = accountsList.find((a: any) => a.accountId === accountId);
+          const accountLabel = account ? `${account.accountName}` : accountId;
+          
+          if (!acc[accountLabel]) {
+            acc[accountLabel] = { accountId: accountLabel, count: 0, active: 0, expiring: 0, expired: 0 };
           }
-          acc[accountId].count++;
-          if (cred.status === 'active') acc[accountId].active++;
-          if (cred.status === 'expiring') acc[accountId].expiring++;
-          if (cred.status === 'expired') acc[accountId].expired++;
+          acc[accountLabel].count++;
+          if (cred.status === 'active') acc[accountLabel].active++;
+          if (cred.status === 'expiring') acc[accountLabel].expiring++;
+          if (cred.status === 'expired') acc[accountLabel].expired++;
           return acc;
         }, {});
         
         const accountSummaryData = Object.values(accountGroups);
         
+        // Use API count if available, otherwise count from credentials
+        const finalAccountCount = totalAccountsCount > 0 ? totalAccountsCount : Object.keys(accountGroups).length;
+        
         setStats({
-          totalAccounts: totalAccountsCount,
+          totalAccounts: finalAccountCount,
           activeKeys,
           expiringSoon,
           expired,
