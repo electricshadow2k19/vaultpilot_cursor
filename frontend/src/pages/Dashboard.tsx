@@ -148,6 +148,23 @@ const Dashboard: React.FC = () => {
   // Get unique accounts for filter
   const uniqueAccounts = Array.from(new Set(credentials.map((c: any) => c.tenantId || 'default')));
 
+  // Helper function to check if credential belongs to selected account
+  const credentialMatchesAccount = (cred: any, selectedAccountId: string): boolean => {
+    if (selectedAccountId === 'all') return true;
+    
+    // Check direct accountId match
+    if (cred.accountId === selectedAccountId) return true;
+    
+    // Map tenantId to accountId for "default" credentials
+    // "default" tenantId belongs to the main VaultPilot account (700880967608)
+    if (cred.tenantId === 'default' && selectedAccountId === '700880967608') return true;
+    
+    // Check if tenantId matches
+    if (cred.tenantId === selectedAccountId) return true;
+    
+    return false;
+  };
+
   // Sort handler
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -161,7 +178,7 @@ const Dashboard: React.FC = () => {
   // Filter and sort credentials
   const filteredAndSortedCredentials = credentials
     .filter((cred: any) => {
-      if (selectedAccount !== 'all' && (cred.accountId || cred.tenantId || 'default') !== selectedAccount) return false;
+      if (!credentialMatchesAccount(cred, selectedAccount)) return false;
       if (selectedStatus !== 'all' && cred.status !== selectedStatus) return false;
       if (selectedType !== 'all' && cred.type !== selectedType) return false;
       if (searchTerm && !cred.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
